@@ -2,6 +2,6 @@
   "minTokens": 50,
   "minLines": 5,
   "format": ["javascript", "typescript"],
-  "ignore": ["**/node_modules/**", "**/dist/**", "**/*.d.ts"],
+  "ignore": ["**/node_modules/**", "**/dist/**", "**/*.d.ts", "**/src/generated/**"],
   "reporters": ["console"]
 }

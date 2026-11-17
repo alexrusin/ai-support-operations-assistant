@@ -50,5 +50,5 @@ export default defineConfig([
   ...tseslint.configs.recommended,
   { languageOptions: { globals: globals.node } },
   codeHealth,
-  globalIgnores(["dist/**", "coverage/**"]),
+  globalIgnores(["dist/**", "coverage/**", "src/generated/**"]),
 ]);

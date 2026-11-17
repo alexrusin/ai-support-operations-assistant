@@ -5,7 +5,7 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.18"
   },
   "scripts": {
     "dev": "tsx watch src/server.ts",
@@ -19,9 +19,19 @@
     "health:dup": "jscpd src --threshold 3",
     "health:unused": "knip",
     "health:deps": "depcruise src --config .dependency-cruiser.cjs",
-    "health:deps:baseline": "depcruise-baseline src --config .dependency-cruiser.cjs"
+    "health:deps:baseline": "depcruise-baseline src --config .dependency-cruiser.cjs",
+    "db:up": "docker compose up -d --wait",
+    "db:down": "docker compose down",
+    "db:migrate": "prisma migrate dev",
+    "db:generate": "prisma generate",
+    "db:seed": "prisma db seed",
+    "db:reset": "prisma migrate reset --force",
+    "db:studio": "prisma studio",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@prisma/adapter-pg": "7.10.1",
+    "@prisma/client": "7.10.1",
     "ai": "^7.0.173",
     "dotenv": "^18.0.10",
     "fastify": "^5.12.8",
@@ -29,6 +39,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@testcontainers/postgresql": "^12.2.1",
     "@types/node": "^26.6.6",
     "dependency-cruiser": "^18.8.0",
     "eslint": "^10.15.0",
@@ -36,6 +47,7 @@
     "globals": "^17.14.0",
     "jscpd": "^5.4.3",
     "knip": "^6.45.1",
+    "prisma": "7.10.1",
     "tsx": "^4.23.15",
     "typescript": "~6.0",
     "typescript-eslint": "^8.73.0",

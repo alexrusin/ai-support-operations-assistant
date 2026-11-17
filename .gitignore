@@ -6,3 +6,6 @@ coverage/
 
 # jscpd baseline for --changed (rebuilt from HEAD)
 .jscpd-baseline.json
+
+# Prisma client, made by `prisma generate`
+src/generated/
