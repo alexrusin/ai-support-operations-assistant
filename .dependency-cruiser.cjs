@@ -86,6 +86,8 @@ module.exports = {
   ],
   options: {
     doNotFollow: { path: "node_modules" },
+    // Prisma writes this code. Its internal cycles are not ours to fix.
+    exclude: { path: "^src/generated/" },
     // Type-only imports count for cycles: they still tie the modules together.
     tsPreCompilationDeps: true,
     tsConfig: { fileName: "tsconfig.json" },

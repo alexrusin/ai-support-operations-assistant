@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:18.7-alpine
+    environment:
+      POSTGRES_USER: support
+      POSTGRES_PASSWORD: support
+      POSTGRES_DB: support_assistant
+    ports:
+      - "5432:5432"
+    volumes:
+      # Postgres 18 images keep data in /var/lib/postgresql/18/docker.
+      # Mount the parent folder. The old /var/lib/postgresql/data path fails.
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U support -d support_assistant"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+volumes:
+  pgdata:

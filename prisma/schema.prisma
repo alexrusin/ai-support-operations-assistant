@@ -1,0 +1,98 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+// The connection URL is in prisma.config.ts.
+datasource db {
+  provider = "postgresql"
+}
+
+// Money is always integer cents plus an ISO 4217 currency code.
+
+model Customer {
+  id           String        @id
+  email        String        @unique
+  name         String
+  plan         String
+  createdAt    DateTime      @default(now()) @map("created_at")
+  transactions Transaction[]
+  tickets      Ticket[]
+
+  @@map("customers")
+}
+
+enum TransactionType {
+  charge
+  refund
+
+  @@map("transaction_type")
+}
+
+enum TransactionStatus {
+  succeeded
+  failed
+  refunded
+
+  @@map("transaction_status")
+}
+
+model Transaction {
+  id                    String            @id
+  customerId            String            @map("customer_id")
+  amountCents           Int               @map("amount_cents")
+  currency              String            @db.Char(3)
+  type                  TransactionType
+  status                TransactionStatus
+  description           String
+  // ID at the simulated payment provider.
+  externalId            String            @unique @map("external_id")
+  // A refund points to the charge it refunds.
+  refundedTransactionId String?           @map("refunded_transaction_id")
+  createdAt             DateTime          @default(now()) @map("created_at")
+
+  customer            Customer      @relation(fields: [customerId], references: [id])
+  refundedTransaction Transaction?  @relation("Refunds", fields: [refundedTransactionId], references: [id])
+  refunds             Transaction[] @relation("Refunds")
+
+  @@index([customerId, createdAt])
+  @@map("transactions")
+}
+
+enum TicketStatus {
+  open
+  pending
+  closed
+
+  @@map("ticket_status")
+}
+
+model Ticket {
+  id         String       @id
+  customerId String       @map("customer_id")
+  subject    String
+  body       String
+  status     TicketStatus @default(open)
+  createdAt  DateTime     @default(now()) @map("created_at")
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@index([customerId])
+  @@map("tickets")
+}
+
+model Policy {
+  id               String   @id
+  slug             String   @unique
+  title            String
+  body             String
+  category         String
+  maxRefundCents   Int?     @map("max_refund_cents")
+  refundWindowDays Int?     @map("refund_window_days")
+  version          Int      @default(1)
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  @@map("policies")
+}
