@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# A new push to the same branch cancels the old run.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      # postinstall runs `prisma generate`.
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Duplicate code
+        run: npm run health:dup
+
+      - name: Unused code and dependencies
+        run: npm run health:unused
+
+      - name: Dependency rules
+        run: npm run health:deps
+
+      # Testcontainers starts Postgres with the Docker on the runner.
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build

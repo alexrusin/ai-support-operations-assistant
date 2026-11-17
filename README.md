@@ -40,6 +40,10 @@ The tests do not use that database. `npm test` starts a new Postgres container w
 | `npm run db:reset` | Drops the database, applies all migrations and seeds |
 | `npm run db:studio` | Opens Prisma Studio to look at the data |
 
+## CI
+
+`.github/workflows/ci.yml` runs on each pull request and on each push to `main`. It runs lint, typecheck, the three code health checks, the tests and the build. The tests use the Docker on the GitHub runner for Testcontainers.
+
 ## Endpoints
 
 `GET /health` returns `200` and `{ "status": "ok" }`.
