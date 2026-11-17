@@ -3,3 +3,6 @@ dist/
 coverage/
 .env
 *.log
+
+# jscpd baseline for --changed (rebuilt from HEAD)
+.jscpd-baseline.json

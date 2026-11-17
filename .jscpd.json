@@ -1,0 +1,7 @@
+{
+  "minTokens": 50,
+  "minLines": 5,
+  "format": ["javascript", "typescript"],
+  "ignore": ["**/node_modules/**", "**/dist/**", "**/*.d.ts"],
+  "reporters": ["console"]
+}
