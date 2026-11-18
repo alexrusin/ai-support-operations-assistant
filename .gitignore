@@ -9,3 +9,6 @@ coverage/
 
 # Prisma client, made by `prisma generate`
 src/generated/
+
+# Verify skill runs and evidence (.claude/skills/verify-support-api)
+.verify/
