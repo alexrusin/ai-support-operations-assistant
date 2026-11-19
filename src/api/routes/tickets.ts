@@ -9,46 +9,56 @@ interface TicketRoutesOptions {
   model: Model;
 }
 
+// Same shape as Fastify's own error body.
+const errorBody = {
+  type: "object",
+  properties: {
+    statusCode: { type: "integer" },
+    error: { type: "string" },
+    message: { type: "string" },
+  },
+  required: ["statusCode", "error", "message"],
+} as const;
+
+const runId = { type: "string", format: "uuid" } as const;
+
+const analyzeSchema = {
+  params: {
+    type: "object",
+    properties: { id: { type: "string" } },
+    required: ["id"],
+  },
+  response: {
+    200: {
+      type: "object",
+      properties: {
+        runId,
+        output: {
+          type: "object",
+          properties: { text: { type: "string" } },
+          required: ["text"],
+        },
+      },
+      required: ["runId", "output"],
+    },
+    404: errorBody,
+    // runId lets the operator find the failed run.
+    502: {
+      ...errorBody,
+      properties: { ...errorBody.properties, runId },
+      required: [...errorBody.required, "runId"],
+    },
+  },
+};
+
 export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (app, { db, model }) => {
   app.post<{ Params: { id: string } }>(
     "/tickets/:id/analyze",
-    {
-      schema: {
-        params: {
-          type: "object",
-          properties: { id: { type: "string" } },
-          required: ["id"],
-        },
-        response: {
-          200: {
-            type: "object",
-            properties: {
-              runId: { type: "string", format: "uuid" },
-              output: {
-                type: "object",
-                properties: { text: { type: "string" } },
-                required: ["text"],
-              },
-            },
-            required: ["runId", "output"],
-          },
-          404: {
-            type: "object",
-            properties: {
-              statusCode: { type: "integer" },
-              error: { type: "string" },
-              message: { type: "string" },
-            },
-            required: ["statusCode", "error", "message"],
-          },
-        },
-      },
-    },
+    { schema: analyzeSchema },
     async (request, reply) => {
       const { id } = request.params;
       const ticket = await db.ticket.findUnique({ where: { id } });
       if (!ticket) {
-        // Same body shape as Fastify's own 404 for unknown routes.
         return reply
           .code(404)
           .send({ statusCode: 404, error: "Not Found", message: `Ticket ${id} not found` });
@@ -56,6 +66,18 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (app,
 
       const result = await analyzeTicket(ticket, model);
       const run = await recordRun(db, ticket.id, result);
+
+      if (!result.ok) {
+        // The provider's message stays in the runs row and the log, not in the response.
+        request.log.warn({ runId: run.id, error: result.error }, "model call failed");
+        return reply.code(502).send({
+          statusCode: 502,
+          error: "Bad Gateway",
+          message: "The model call failed",
+          runId: run.id,
+        });
+      }
+
       return { runId: run.id, output: { text: result.text } };
     },
   );

@@ -3,10 +3,12 @@ import { MockLanguageModelV4 } from "ai/test";
 import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import { SEED_IDS, seedDatabase } from "../../prisma/seed-data.js";
+import type { Model } from "../../src/ai/model.js";
 import { buildApp } from "../../src/app.js";
 import { createPrismaClient, type Database } from "../../src/infrastructure/database/client.js";
 
 const MOCK_TEXT = "The customer was charged two times and wants one refund.";
+const ticketId = SEED_IDS.duplicateCharge.ticket;
 
 const model = new MockLanguageModelV4({
   modelId: "mock-model",
@@ -25,31 +27,47 @@ const model = new MockLanguageModelV4({
   },
 });
 
-describe("POST /tickets/:id/analyze", () => {
-  let db: Database;
-  let app: FastifyInstance;
+const failingModel = new MockLanguageModelV4({
+  modelId: "mock-model",
+  doGenerate: async () => {
+    await sleep(5);
+    throw new Error("provider is down");
+  },
+});
+
+// Seeds the database and builds an app with the given model for one describe block.
+function setupApp(appModel: Model) {
+  const ctx = {} as { db: Database; app: FastifyInstance };
 
   beforeAll(async () => {
-    db = createPrismaClient(inject("databaseUrl"));
-    await seedDatabase(db);
-    app = await buildApp({ db, model }, { logger: false });
+    ctx.db = createPrismaClient(inject("databaseUrl"));
+    await seedDatabase(ctx.db);
+    ctx.app = await buildApp({ db: ctx.db, model: appModel }, { logger: false });
   });
 
   afterAll(async () => {
-    await app.close();
-    await db.$disconnect();
+    await ctx.app.close();
+    await ctx.db.$disconnect();
   });
 
-  it("returns the analysis and records the run", async () => {
-    const ticketId = SEED_IDS.duplicateCharge.ticket;
+  return ctx;
+}
 
-    const res = await app.inject({ method: "POST", url: `/tickets/${ticketId}/analyze` });
+function analyze(app: FastifyInstance, id: string) {
+  return app.inject({ method: "POST", url: `/tickets/${id}/analyze` });
+}
+
+describe("POST /tickets/:id/analyze", () => {
+  const ctx = setupApp(model);
+
+  it("returns the analysis and records the run", async () => {
+    const res = await analyze(ctx.app, ticketId);
 
     expect(res.statusCode).toBe(200);
     const body = res.json<{ runId: string; output: { text: string } }>();
     expect(body.output).toEqual({ text: MOCK_TEXT });
 
-    const run = await db.run.findUniqueOrThrow({ where: { id: body.runId } });
+    const run = await ctx.db.run.findUniqueOrThrow({ where: { id: body.runId } });
     expect(run).toMatchObject({
       ticketId,
       model: "mock-model",
@@ -65,9 +83,9 @@ describe("POST /tickets/:id/analyze", () => {
 
   it("returns 404 for an unknown ticket and does not call the model", async () => {
     const callsBefore = model.doGenerateCalls.length;
-    const runsBefore = await db.run.count();
+    const runsBefore = await ctx.db.run.count();
 
-    const res = await app.inject({ method: "POST", url: "/tickets/tkt_unknown/analyze" });
+    const res = await analyze(ctx.app, "tkt_unknown");
 
     expect(res.statusCode).toBe(404);
     expect(res.json()).toEqual({
@@ -76,6 +94,35 @@ describe("POST /tickets/:id/analyze", () => {
       message: "Ticket tkt_unknown not found",
     });
     expect(model.doGenerateCalls).toHaveLength(callsBefore);
-    expect(await db.run.count()).toBe(runsBefore);
+    expect(await ctx.db.run.count()).toBe(runsBefore);
+  });
+});
+
+describe("POST /tickets/:id/analyze when the model call fails", () => {
+  const ctx = setupApp(failingModel);
+
+  it("returns 502 and records the error", async () => {
+    const res = await analyze(ctx.app, ticketId);
+
+    expect(res.statusCode).toBe(502);
+    const body = res.json<{ runId: string }>();
+    expect(body).toEqual({
+      statusCode: 502,
+      error: "Bad Gateway",
+      message: "The model call failed",
+      runId: expect.any(String),
+    });
+
+    const run = await ctx.db.run.findUniqueOrThrow({ where: { id: body.runId } });
+    expect(run).toMatchObject({
+      ticketId,
+      model: "mock-model",
+      promptVersion: "analyze-ticket@1",
+      inputTokens: null,
+      outputTokens: null,
+      output: null,
+      error: "provider is down",
+    });
+    expect(run.latencyMs).toBeGreaterThan(0);
   });
 });
