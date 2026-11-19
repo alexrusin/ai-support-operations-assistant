@@ -5,7 +5,7 @@
 // Unused files and packages stay with knip, and broken imports with tsc.
 //
 // The layers come from docs/roadmap.md. Imports point inward only:
-// routes/api -> ai -> domain -> infrastructure, and everything may use
+// api -> ai -> domain -> infrastructure, and everything may use
 // shared and config.
 //
 // The Stop hook runs these rules on src/. To accept the violations that
@@ -30,7 +30,7 @@ module.exports = {
         "src/ai coordinates model calls and must not depend on HTTP code. " +
         "Pass the data in from the route instead.",
       from: { path: "^src/ai/" },
-      to: { path: "^src/(api|routes)/" },
+      to: { path: "^src/api/" },
     },
     {
       name: "domain-not-to-outer",
@@ -40,7 +40,7 @@ module.exports = {
         "code or on the AI layer, so the rules stay plain TypeScript that " +
         "a prompt cannot change.",
       from: { path: "^src/domain/" },
-      to: { path: "^src/(api|routes|ai)/" },
+      to: { path: "^src/(api|ai)/" },
     },
     {
       name: "infrastructure-not-to-outer",
@@ -49,7 +49,7 @@ module.exports = {
         "src/infrastructure (database, logging) must not depend on the " +
         "layers that use it.",
       from: { path: "^src/infrastructure/" },
-      to: { path: "^src/(api|routes|ai|domain)/" },
+      to: { path: "^src/(api|ai|domain)/" },
     },
     {
       name: "shared-is-leaf",
