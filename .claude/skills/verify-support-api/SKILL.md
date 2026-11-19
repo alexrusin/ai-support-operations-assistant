@@ -19,7 +19,7 @@ In Bash, set `V="node .claude/skills/verify-support-api/scripts/verify.mjs"` and
 
 `docker-compose.yml` binds the dev database to host port 5432 and keeps its data in the `pgdata` volume. The seed script deletes all rows. If you seed or drive that database, you destroy the user's dev data. So this skill never uses `npm run db:up`, `docker compose` or the `DATABASE_URL` in `.env`. Each run starts its own container from the same image on a random `127.0.0.1` port. The helper passes `DATABASE_URL` in the environment, and dotenv does not override a variable that is already set, so `.env` has no effect.
 
-Two runs can live side by side. Each has its own container, DB port and API port. `.verify/current` points to the newest run. To drive an older run, pass `--run <id>` to every command.
+Two runs can live side by side. Each has its own container, DB port and API port. `.verify/current` points to the newest run. To drive an older run, pass `--run <id>` to every command. Launch refuses to start while the current run is live. Pass `--parallel` to start a second run on purpose.
 
 ## Launch
 
@@ -57,6 +57,7 @@ Every drive command writes one evidence file. `--name` is required. Use `<featur
 
 ```bash
 # HTTP request to the run's API. Records request, status, headers and body.
+# Prints one line: HTTP <status> <content-type> <body as JSON>.
 $V http GET health --name health--ok
 $V http POST some/route --body '{"key":"value"}' --name feature--step
 
@@ -65,21 +66,27 @@ $V sql "select id, status from transactions order by id" --name seed-data--trans
 
 # A second, short-lived server with env overrides. Records exit code and output.
 $V run-server --name server-startup--bad-port --env PORT=99999 --timeout 15000
+
+# A repo command with DATABASE_URL set to the run's database. Records exit code and output.
+$V exec --name database-setup--reseed -- npm run db:seed
 ```
 
 Write the HTTP path without the leading slash when you use Git Bash. Git Bash rewrites `/health` to `C:/Program Files/Git/health`, and the helper refuses that path. PowerShell, or `MSYS_NO_PATHCONV=1`, also works with the slash.
 
 `run-server` uses the run's `DATABASE_URL` and a new free port unless you override them. If the server is still up at `--timeout`, the helper kills it and records `timedOut: true`.
 
-To run a repo script against the run's database, take `databaseUrl` from `$V info` and set it for that one command, for example `DATABASE_URL=<databaseUrl> npm run db:seed`. Never run a database script without that override.
+Run every repo database script through `$V exec`. Put the command after `--`. Without `exec`, the script reads `.env` and changes the dev database.
+
+Prisma refuses `migrate reset`, and so `npm run db:reset`, when an AI agent starts it. Report that step as skipped and ask the user to run it.
 
 ## Evidence
 
 Evidence goes to `.verify/runs/<runId>/evidence/`. The folder is in `.gitignore`. Files:
 
-- `<name>.http.json` has the request, status, headers, body, run ID and commit.
+- `<name>.http.json` has `evidence`, `run`, `commit`, `at`, `request` (`method`, `url`, `body`) and `response` (`status`, `headers`, `body`).
 - `<name>.sql.txt` has the query and the psql output.
 - `<name>.server.json` has the env overrides, exit code, timeout flag and server output.
+- `<name>.exec.txt` has the command, exit code and output.
 - `server.log` is copied in at cleanup. It has one pino line per request, with `reqId`, URL and status code.
 
 Proof rules:
