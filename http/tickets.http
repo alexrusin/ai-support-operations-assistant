@@ -1,0 +1,9 @@
+@baseUrl = http://localhost:3000
+
+### Analyze a seed ticket (duplicate charge). Calls the real model and writes a runs row.
+POST {{baseUrl}}/tickets/tkt_duplicate/analyze
+Accept: application/json
+
+### Unknown ticket. Returns 404 and writes no runs row.
+POST {{baseUrl}}/tickets/tkt_unknown/analyze
+Accept: application/json

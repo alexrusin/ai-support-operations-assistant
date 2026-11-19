@@ -5,6 +5,7 @@ This folder is the maintained source for verifying the user-facing behavior of t
 ## Baseline preconditions
 
 - Docker runs, and `npm install` was done in the repo.
+- `.env` has a real `OPENAI_API_KEY`. The server does not start without it, so launch fails.
 - Set `V="node .claude/skills/verify-support-api/scripts/verify.mjs"` in Bash, or use the full command in PowerShell.
 - Run `$V launch` and wait for the `READY` line.
 - Run `$V doctor` and require `DOCTOR OK`. It proves the seed counts `4,7,4,3` and that our PID owns the API port.
@@ -44,5 +45,6 @@ Keep implementation details out of the map. Name only user paths, stable handles
 - [Server startup](./server-startup.md) covers the listen log and the refusal to start with an invalid environment.
 - [Database setup](./database-setup.md) covers migrations from an empty database and a repeated seed.
 - [Seed data](./seed-data.md) covers the four edge-case customers, their transactions and tickets, and the policies.
+- [Ticket analysis](./ticket-analysis.md) covers `POST /tickets/:id/analyze`, the `runs` row for each model call, the `404` for an unknown ticket and the startup stop without `OPENAI_API_KEY`.
 
 The roadmap (`docs/roadmap.md`) adds customer lookup, policy search, investigation runs and refund approval later. Add one feature file for each new route when it ships.
