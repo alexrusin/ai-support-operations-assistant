@@ -62,4 +62,20 @@ describe("POST /tickets/:id/analyze", () => {
     });
     expect(run.latencyMs).toBeGreaterThan(0);
   });
+
+  it("returns 404 for an unknown ticket and does not call the model", async () => {
+    const callsBefore = model.doGenerateCalls.length;
+    const runsBefore = await db.run.count();
+
+    const res = await app.inject({ method: "POST", url: "/tickets/tkt_unknown/analyze" });
+
+    expect(res.statusCode).toBe(404);
+    expect(res.json()).toEqual({
+      statusCode: 404,
+      error: "Not Found",
+      message: "Ticket tkt_unknown not found",
+    });
+    expect(model.doGenerateCalls).toHaveLength(callsBefore);
+    expect(await db.run.count()).toBe(runsBefore);
+  });
 });

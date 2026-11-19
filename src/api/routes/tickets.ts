@@ -32,11 +32,28 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (app,
             },
             required: ["runId", "output"],
           },
+          404: {
+            type: "object",
+            properties: {
+              statusCode: { type: "integer" },
+              error: { type: "string" },
+              message: { type: "string" },
+            },
+            required: ["statusCode", "error", "message"],
+          },
         },
       },
     },
-    async (request) => {
-      const ticket = await db.ticket.findUniqueOrThrow({ where: { id: request.params.id } });
+    async (request, reply) => {
+      const { id } = request.params;
+      const ticket = await db.ticket.findUnique({ where: { id } });
+      if (!ticket) {
+        // Same body shape as Fastify's own 404 for unknown routes.
+        return reply
+          .code(404)
+          .send({ statusCode: 404, error: "Not Found", message: `Ticket ${id} not found` });
+      }
+
       const result = await analyzeTicket(ticket, model);
       const run = await recordRun(db, ticket.id, result);
       return { runId: run.id, output: { text: result.text } };
