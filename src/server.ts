@@ -1,9 +1,16 @@
+import { createOpenAIModel } from "./ai/model.js";
 import { buildApp } from "./app.js";
 import { config } from "./config/env.js";
 import { createPrismaClient } from "./infrastructure/database/client.js";
 
+if (!config.OPENAI_API_KEY) {
+  console.error("OPENAI_API_KEY is not set. Add it to .env (see .env.example) and start the server again.");
+  process.exit(1);
+}
+
 const db = createPrismaClient();
-const app = await buildApp({ db }, { logger: { level: config.LOG_LEVEL } });
+const model = createOpenAIModel(config.OPENAI_API_KEY, config.AI_MODEL);
+const app = await buildApp({ db, model }, { logger: { level: config.LOG_LEVEL } });
 
 const shutdown = async (signal: string) => {
   app.log.info({ signal }, "shutting down");

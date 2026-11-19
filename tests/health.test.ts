@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
+import { MockLanguageModelV4 } from "ai/test";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../src/app.js";
 import { createPrismaClient, type Database } from "../src/infrastructure/database/client.js";
@@ -9,7 +10,7 @@ describe("GET /health", () => {
 
   beforeAll(async () => {
     db = createPrismaClient(inject("databaseUrl"));
-    app = await buildApp({ db }, { logger: false });
+    app = await buildApp({ db, model: new MockLanguageModelV4() }, { logger: false });
   });
 
   afterAll(async () => {

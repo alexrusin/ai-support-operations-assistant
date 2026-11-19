@@ -3,6 +3,9 @@ import { z } from "zod";
 
 dotenv.config({ quiet: true });
 
+// An empty value in .env means "not set".
+const optionalString = z.preprocess((v) => (v === "" ? undefined : v), z.string().optional());
+
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
@@ -11,6 +14,10 @@ const envSchema = z.object({
     .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
     .default("info"),
   DATABASE_URL: z.url(),
+  // Optional here because tests import this module and have no key.
+  // src/server.ts stops when it is missing.
+  OPENAI_API_KEY: optionalString,
+  AI_MODEL: z.string().min(1).default("gpt-5.4-mini"),
 });
 
 export type Config = z.infer<typeof envSchema>;

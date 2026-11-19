@@ -78,6 +78,7 @@ model Ticket {
   createdAt  DateTime     @default(now()) @map("created_at")
 
   customer Customer @relation(fields: [customerId], references: [id])
+  runs     Run[]
 
   @@index([customerId])
   @@map("tickets")
@@ -95,4 +96,25 @@ model Policy {
   createdAt        DateTime @default(now()) @map("created_at")
 
   @@map("policies")
+}
+
+// One row for each model call, success or failure. Tokens and output are
+// null when the call failed. tool_calls stays empty until the agent has tools.
+model Run {
+  id            String   @id @default(uuid()) @db.Uuid
+  ticketId      String   @map("ticket_id")
+  model         String
+  promptVersion String   @map("prompt_version")
+  inputTokens   Int?     @map("input_tokens")
+  outputTokens  Int?     @map("output_tokens")
+  latencyMs     Int      @map("latency_ms")
+  toolCalls     Json     @default("[]") @map("tool_calls")
+  output        Json?
+  error         String?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  ticket Ticket @relation(fields: [ticketId], references: [id])
+
+  @@index([ticketId, createdAt])
+  @@map("runs")
 }
