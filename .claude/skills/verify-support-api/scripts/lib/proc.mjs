@@ -13,6 +13,10 @@ export function docker(args) {
   return sh("docker", args);
 }
 
+export function containerRunning(name) {
+  return docker(["inspect", "-f", "{{.State.Running}}", name]).stdout.trim() === "true";
+}
+
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export async function waitFor(check, { timeoutMs, what, intervalMs = 500 }) {

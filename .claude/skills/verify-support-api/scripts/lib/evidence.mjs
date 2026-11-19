@@ -1,7 +1,7 @@
 // Drive commands. Each one acts on the live run and writes one evidence file.
-import { docker, freePort, killTree } from "./proc.mjs";
-import { serverEnv, spawnServer } from "./server.mjs";
-import { DB, loadState, writeEvidence } from "./state.mjs";
+import { docker, freePort, killTree, sh } from "./proc.mjs";
+import { prismaEnv, serverEnv, spawnServer } from "./server.mjs";
+import { DB, REPO, loadState, writeEvidence } from "./state.mjs";
 
 function parseBody(text) {
   try {
@@ -34,8 +34,28 @@ export async function http(method, urlPath, { name, body, run }) {
     response: { status: res.status, headers: Object.fromEntries(res.headers), body: parseBody(await res.text()) },
   };
   const file = writeEvidence(state.runId, `${name}.http.json`, JSON.stringify(record, null, 2));
-  console.log(JSON.stringify(record.response, null, 2));
+  const { status, headers: resHeaders, body: resBody } = record.response;
+  console.log(`HTTP ${status} ${resHeaders["content-type"] ?? "-"} ${JSON.stringify(resBody)}`);
   console.log(`EVIDENCE ${file}`);
+}
+
+// cmd.exe and sh both accept double quotes around an argument with spaces.
+function quoteArg(arg) {
+  return /^[\w@%+=:,./-]+$/.test(arg) ? arg : `"${arg.replaceAll('"', '\\"')}"`;
+}
+
+// Runs a repo command with DATABASE_URL set to the run's database, so the
+// command never reaches the dev database in .env.
+export function exec(argv, { name, run }) {
+  if (argv.length === 0) throw new Error("Give the command after --, for example: exec --name db--seed -- npm run db:seed");
+  const state = loadState(run);
+  const command = argv.map(quoteArg).join(" ");
+  const r = sh(command, [], { cwd: REPO, env: prismaEnv(state.databaseUrl), shell: true });
+  const text = `-- run ${state.runId} at ${new Date().toISOString()}\n$ ${command}\nexitCode=${r.code}\n${r.out}`;
+  const file = writeEvidence(state.runId, `${name}.exec.txt`, text);
+  console.log(`exitCode=${r.code}\n${r.out.trim()}`);
+  console.log(`EVIDENCE ${file}`);
+  if (r.code !== 0) process.exitCode = 1;
 }
 
 export function sql(query, { name, run }) {

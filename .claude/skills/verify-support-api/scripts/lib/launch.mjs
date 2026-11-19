@@ -2,9 +2,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import { cleanup } from "./cleanup.mjs";
-import { docker, freePort, getHealth, sh, waitFor } from "./proc.mjs";
+import { containerRunning, docker, freePort, getHealth, isOurNode, sh, waitFor } from "./proc.mjs";
 import { PRISMA_CLI, prismaEnv, serverEnv, spawnServer } from "./server.mjs";
-import { CONTAINER_LABEL, DB, REPO, gitHead, newRunId, runDir, saveState } from "./state.mjs";
+import { CONTAINER_LABEL, DB, REPO, gitHead, newRunId, runDir, saveState, tryLoadState } from "./state.mjs";
 
 // Same image as docker-compose.yml.
 const IMAGE = "postgres:18.7-alpine";
@@ -64,7 +64,19 @@ async function bringUp(state) {
   await waitFor(() => serverReady(state), { timeoutMs: 30_000, what: "server /health and listen log" });
 }
 
-export async function launch() {
+// A second launch by mistake leaves two live runs. A stale state with a dead
+// server and no container does not count as live.
+function refuseLiveRun() {
+  const live = tryLoadState();
+  if (!live || !(isOurNode(live.pid) || containerRunning(live.container))) return;
+  throw new Error(
+    `Run ${live.runId} is live at ${live.baseUrl}. Drive it, or run cleanup first. ` +
+      "Pass --parallel to start a second run next to it.",
+  );
+}
+
+export async function launch({ parallel }) {
+  if (!parallel) refuseLiveRun();
   const runId = newRunId();
   const state = { runId, startedAt: new Date().toISOString(), commit: gitHead(), container: `verify-sa-${runId}` };
   saveState(state);

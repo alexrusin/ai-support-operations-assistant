@@ -1,13 +1,12 @@
 // doctor: read-only checks that the current run is worth driving.
-import { docker, getHealth, isOurNode, listenerPid } from "./proc.mjs";
+import { containerRunning, docker, getHealth, isOurNode, listenerPid } from "./proc.mjs";
 import { DB, gitHead, loadState } from "./state.mjs";
 
 // Row counts that prisma/seed-data.ts loads.
 const SEED_COUNTS = { customers: 4, transactions: 7, tickets: 4, policies: 3 };
 
 function containerCheck(state) {
-  const r = docker(["inspect", "-f", "{{.State.Running}}", state.container]);
-  return { name: "postgres container running", ok: r.stdout.trim() === "true", detail: state.container };
+  return { name: "postgres container running", ok: containerRunning(state.container), detail: state.container };
 }
 
 function seedCheck(state) {

@@ -3,16 +3,17 @@
 import { parseArgs } from "node:util";
 import { cleanup, stranded } from "./lib/cleanup.mjs";
 import { doctor } from "./lib/doctor.mjs";
-import { http, runServer, sql } from "./lib/evidence.mjs";
+import { exec, http, runServer, sql } from "./lib/evidence.mjs";
 import { launch } from "./lib/launch.mjs";
 import { loadState } from "./lib/state.mjs";
 
 const USAGE = `usage: node .claude/skills/verify-support-api/scripts/verify.mjs <command>
-  launch                                   start Postgres + migrate + seed + server
+  launch     [--parallel]                  start Postgres + migrate + seed + server
   doctor     [--run ID]                    read-only health of the run
   http       METHOD PATH --name N [--body JSON] [--run ID]
   sql        "QUERY" --name N [--run ID]
   run-server --name N [--env K=V ...] [--timeout MS] [--run ID]
+  exec       --name N [--run ID] -- CMD ...  repo command with the run's DATABASE_URL
   cleanup    [--run ID]                    stop the run, keep evidence
   info       [--run ID]                    print run state (baseUrl, databaseUrl, pid)
   stranded                                 remove lost verify containers`;
@@ -25,6 +26,7 @@ const { positionals, values } = parseArgs({
     body: { type: "string" },
     env: { type: "string", multiple: true },
     timeout: { type: "string" },
+    parallel: { type: "boolean" },
   },
 });
 
@@ -35,7 +37,7 @@ function requireName() {
 }
 
 const commands = {
-  launch: () => launch(),
+  launch: () => launch(values),
   doctor: () => doctor(values.run),
   cleanup: () => cleanup(values.run),
   stranded: () => stranded(),
@@ -43,6 +45,7 @@ const commands = {
   http: () => (requireName(), http(rest[0].toUpperCase(), rest[1], values)),
   sql: () => (requireName(), sql(rest[0], values)),
   "run-server": () => (requireName(), runServer(values)),
+  exec: () => (requireName(), exec(rest, values)),
 };
 
 if (!commands[command]) {
