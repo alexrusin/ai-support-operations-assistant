@@ -37,7 +37,7 @@ It does these steps, in this order:
 
 Ready means the last line is `READY run=<id> baseUrl=http://127.0.0.1:<port> dbPort=<port> pid=<pid>`. A cold launch takes about 20 seconds. If a step fails, launch prints the error and the log tail, removes what it started and exits with 1.
 
-Preconditions: Docker runs, and `npm install` was done (it makes `src/generated/prisma`). Launch does not need `.env`.
+Preconditions: Docker runs, and `npm install` was done (it makes `src/generated/prisma`). Launch sets `DATABASE_URL`, `HOST`, `PORT` and `LOG_LEVEL`. The server takes other values, such as `OPENAI_API_KEY` and `AI_MODEL`, from `.env`. It exits at startup without `OPENAI_API_KEY`.
 
 The server loads the source one time at start. After you edit anything in `src/` or `prisma/`, run cleanup and launch again. Doctor warns when HEAD moved since launch, but it cannot see uncommitted edits.
 
@@ -87,7 +87,7 @@ Proof rules:
 - Drive the real user path: an HTTP request to the running server, the real start command, the real npm scripts. `app.inject()` and the Vitest suite are not proof for this skill.
 - Capture the action and the result. For a write, also capture a read-only second view: a `GET` or a `sql` query of the stored rows.
 - Check side effects, not only the response. A route that writes must have the rows in the database. A route that logs must have the line in `server.log`.
-- Mocks are allowed only at a boundary the app already isolates. Today there is none, so use no mocks.
+- Mocks are allowed only at a boundary the app already isolates. The language model is injected into `buildApp`, but the real server always uses the real OpenAI model, so use no mocks here.
 - When a feature file lists more than one entry point, drive each one. A skipped entry point is reported as skipped, with the reason, not as verified.
 
 ## Cleanup

@@ -110,6 +110,7 @@ const tickets = [
 // Deletes all rows, then inserts the seed data. Safe to run again.
 export async function seedDatabase(db: Database): Promise<void> {
   await db.$transaction([
+    db.run.deleteMany(),
     db.ticket.deleteMany(),
     db.transaction.deleteMany({ where: { type: "refund" } }),
     db.transaction.deleteMany(),

@@ -5,7 +5,6 @@
     ".claude/skills/verify-*/scripts/verify.mjs"
   ],
   "ignoreDependencies": [
-    "ai",
     "@prisma/client"
   ]
 }
